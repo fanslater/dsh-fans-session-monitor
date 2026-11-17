@@ -1,155 +1,155 @@
-# fans Session Monitor Overview
+[English](./README.en.md) | **简体中文**
 
-Merges the previous two fans plugins into one:
+# fans会话状态监测总览
 
-- **fans Workspace Session Order & Highlight** — sidebar ordering, six-state highlighting, selection frame;
-- **fans Session Overview** — cross-workspace buckets, counts, filters, click-to-open, shutdown scene.
+由原来的两个 fans 插件合并而来：
 
-The sidebar and overview share one status resolver, final-state cache (sticky), manual-correction store (override), configuration page, and scene policy, so the same Session cannot show two different states in the two views.
+- **fans工作区会话排序高亮状态**：侧栏排序、七态高亮、当前选中框；
+- **fans会话总览**：跨工作区六桶分组、计数、筛选、点击打开、重启现场。
 
-## Features
+侧栏和会话总览共用同一套状态解析、最终状态缓存（sticky）、手动修正（override）、配置和现场策略，因此同一个会话不会在两个视图里得到两种不同状态。
 
-### Sidebar
+## 功能
 
-- order workspaces by their newest Session activity;
-- seven states: review, waiting, running, interrupted, completed unread, completed seen, archived (concluded);
-- 3px state bar, tinted background, inset ring, title mix, trailing state word;
-- workspace header uses the strongest state and shows `N × state`;
-- current selection: 2px violet edge border with 12% violet fill, state colours preserved;
-- green settle pulse when a run stops.
+### 侧栏
 
-### Overview
+- 按每个工作区最新会话的最后活动时间排序；
+- 七种状态：待审核、待处理、执行中、已中断、已完成 · 未查看、已完成 · 已查看、已完结；
+- 3px 状态条、状态底色、inset ring、标题混色、行尾状态词；
+- 工作区头按最高优先级聚合，显示“N 个 状态”；
+- 当前选中会话：2px 紫色边框 + 12% 紫底，状态色保留；
+- 运行停止时绿色脉冲。
 
-- six buckets with counts and filters;
-- click a Session to open it;
-- shutdown scene for previous review/waiting/running/unread states;
-- configurable scene lifetime;
-- Sessions older than `stickyHours` are excluded from the six-state buckets.
+### 会话总览
 
-## Six states
+- 六桶分组、计数、筛选；
+- 点击会话跳转到对应工作区/会话；
+- 重启现场：上次待审核/待处理/运行中/未读；
+- 现场有效期可配置。
 
-| State | Colour | Trigger |
+## 七态判定
+
+| 状态 | 颜色 | 判定依据 |
 |---|---|---|
-| **Review** | `#f97316` | `pendingInteraction.kind = approval / plan-review`, or a scene entry waiting for approval/plan confirmation |
-| **Waiting** | `#eab308` | `pendingInteraction.kind = question`, or a scene entry waiting for your answer |
-| **Running** | `#3b82f6` | Host Agent is running; or `sessionStatus.running=true` with a live Agent; or the selected row's DOM `data-state="ongoing"` |
-| **Interrupted** | `#ef4444` | Host `turn/end` is `interrupted`, `aborted` (including a user stop), `blocked`, `error`, or `max-tokens`; an open turn across a Host restart; a non-selected scene `running` without Host completed evidence; or a manual mark |
-| **Completed · unread** | `#22c55e` | DSH `completionUnread`; Host `completed / forked` without seen evidence; scene unread; sticky unread persists until selected/read |
-| **Completed · seen** | `#00c8c8` | the Session was selected (or scene/sticky `seenAt` evidence); within `stickyHours` |
-| **Archived (concluded)** | `#94a3b8` | **manual only**: right-click → 「标记会话为已完结」; new activity, running, pending, or unread auto-clears it |
+| **待审核** | `#f97316` | `pendingInteraction.kind = approval / plan-review`，或页面现场记录上次关闭前在等审批/计划确认 |
+| **待处理** | `#eab308` | `pendingInteraction.kind = question`，或页面现场记录上次关闭前在等你回答 |
+| **执行中** | `#3b82f6` | Host Agent 正在运行；或 `sessionStatus.running=true` 且存在 live Agent；或当前选中行 DOM `data-state="ongoing"` |
+| **已中断** | `#ef4444` | Host `turn/end` 为 `interrupted`、`aborted`（包括用户主动停止）、`blocked`、`error`、`max-tokens`；或 Host 重启时存在未闭合 turn；或非选中会话的场景记录为 running 且没有 Host completed 证据；或手动标记 |
+| **已完成 · 未查看** | `#22c55e` | DSH `completionUnread`；或 Host `completed / forked` 且没有已读证据；或场景 unread；sticky unread 会持续到选中/已读 |
+| **已完成 · 已查看** | `#00c8c8` | 选中过该会话（含场景/sticky 有 `seenAt` 证据） |
+| **已完结** | `#94a3b8` | **仅手动**：右键 → 「标记状态为 → 已完结」；从**标记时刻**起算 `stickyHours` 超时自动失效，新活动 / 运行 / 待办 / 未读 / 「清除状态标记」也会提前清除 |
 
-Elapsed time is never used to infer interruption. Long-running work only adds `running · N minutes without output`.
+**不会**再因为 `updatedAt` 很久没变而判“已中断”。长任务只显示“执行中 · N 分钟无新输出”。
 
-### Priority
-
-```text
-review > waiting > running > interrupted > unread > seen > archived
-```
-
-### Expiry
-
-- final states (interrupted/unread/seen) lose highlighting after `stickyHours`;
-- the sidebar keeps a plain Session row without a state bar/background/state word;
-- the overview skips these `bucket = null` Sessions;
-- turning off `stickyColors` hides final colours and keeps only live states.
-
-## Configuration
-
-Registered only at `plugins.bundle.config`, never in DSH Settings. The only actions are:
+### 优先级
 
 ```text
-[Save configuration] [Restore defaults]
+待审核 > 待处理 > 执行中 > 已中断 > 已完成·未查看 > 已完成·已查看 > 已完结
 ```
 
-| Option | Default | Meaning |
+### 高亮退出收口
+
+- 七种状态的高亮**都不按时间过期**；
+- 唯一的退出途径：右键 → 「标记状态为 → 已完结」→ 从**标记时刻**起算 `stickyHours` 超时自动脱落，或随时「清除状态标记」手动脱落；
+- 脱落后进入普通样式（`settled` 记忆），直到会话出现新的真实事件（新任务完成/中断/新活动）才恢复自动流转；
+- 自动状态仍会被矛盾信号打断：新活动、进入运行、出现待办、出现未读；
+- 关闭“保留最终状态颜色”后，只显示实时状态。
+
+## 配置
+
+配置只出现在本插件详情页，不进入 DSH【设置】。按钮只有：
+
+```text
+[保存配置] [恢复默认]
+```
+
+| 配置项 | 默认值 | 说明 |
 |---|---:|---|
-| Order workspaces by last activity | on | off keeps the official order |
-| Highlight Session rows | on | bar, tint, ring, title colour, trailing state word |
-| Highlight workspace headers | on | header tint, bar, badge |
-| Intensity | `0.6` | `0–1`, controls tint/ring strength |
-| Show “completed · seen” | on | hides seen rows in both views when off |
-| Show workspace name | on | second line includes workspace name |
-| Compact mode | off | lower row height and hide second line |
-| Keep final state colours | on | interrupted/unread/seen survive refresh |
-| Final colour retention | `24` h | `1–720`, measured from last activity |
-| Quiet-run hint | `30` min | `0–1440`; hint only, never changes running, 0 disables |
-| Settle pulse | on | one green pulse on running → non-running |
-| Restore shutdown scene | on | restores review/waiting/running/unread |
-| Scene lifetime | `72` h | `1–720` |
+| 按最后活动时间排序工作区 | 开 | 关闭后保持官方顺序 |
+| 高亮会话行 | 开 | 色条、底色、ring、标题色、行尾状态词 |
+| 高亮工作区标题 | 开 | 头部底色、竖条、状态徽标 |
+| 强调强度 | `0.6` | `0–1`，控制底色和 ring 浓度 |
+| 显示「已完成 · 已查看」 | 开 | 关闭后侧栏和总览都隐藏已查看状态 |
+| 行内显示工作区名 | 开 | 关闭后第二行只显示状态说明 |
+| 紧凑模式 | 关 | 压缩行高并隐藏第二行说明 |
+| 保留最终状态颜色 | 开 | 已中断/未查看/已查看跨刷新保留 |
+| 已完结保留时长 | `24` 小时 | `1–720`，从标记「已完结」的时刻起算 |
+| 长时间无输出提示 | `30` 分钟 | `0–1440`；只加提示，不改变“执行中”，0 关闭 |
+| 运行停止时播放脉冲 | 开 | running → 非 running 时播放一次绿色脉冲 |
+| 恢复上次关闭时的现场 | 开 | 记录上次运行/待办/未读状态 |
+| 现场有效期 | `72` 小时 | `1–720`；超过后不再恢复 |
+| 状态配色 | 七态默认色 | 选择器 / HEX / RGB 三种输入；「还原默认配色」单独重置 |
 
-## Shared consistency
+## 共享与一致性
 
-- both views call the same `resolveStatus()`;
-- both use the same sticky, override, scene, and Host runtime;
-- the selected row's DOM `data-state` is the direct renderer fact for the current Session;
-- the sidebar shows all Session rows; the overview only shows six-state Sessions and skips `bucket = null`;
-- that is a display-set difference, not two states for one Session.
+- 侧栏和总览调用同一个 `resolveStatus()`；
+- 共用同一份 sticky、override、scene、Host runtime；
+- 当前选中行的 DOM `data-state` 作为当前会话的直接渲染事实；
+- 侧栏始终显示会话行；总览只显示七态内会话（`bucket=null` 的 `settled` 会话被跳过）；
+- 这是显示集合差异，不是同一会话两个状态。
 
-## Data migration
+## 数据迁移
 
-On first load the plugin reads and merges:
+首次加载会读取并合并：
 
 - `dsh-plugin-busy-workspace:settings:v2`
 - `dsh-plugin-busy-workspace:state:v2`
 - `dsh-session-overview.settings`
 - `dsh-session-overview.scene.v1`
 
-New keys:
+写入新 key：
 
 - `dsh-plugin-session-monitor:settings:v1`
 - `dsh-plugin-session-monitor:state:v1`
 - `dsh-plugin-session-monitor:overrides:v1`
 
-Old keys are kept for one release. Legacy A sticky `interrupted` records produced by the removed timeout heuristic are discarded.
+旧 key 保留一个版本，便于回滚。旧 A 的“超时写入 interrupted”sticky 在迁移时丢弃。
 
-## Relationship with the recycle-bin plugin
+## 与回收站插件的关系
 
-The recycle bin remains independent: **fans Session Recycle Bin**
-(`dsh-fans-session-recycle`). This plugin contains no recycle-bin code, options, or
-Host route. After a permanent delete, B emits `dsh-busy-workspace:purged` and this plugin
-clears the matching sticky/override/scene record.
+回收站与清理仍由独立插件 **fans会话回收站清理**（`dsh-fans-session-recycle`）维护。本插件不包含回收站代码、配置或 Host 路由。B 永久删除后发出 `dsh-busy-workspace:purged`，本插件收到后清理对应 sticky、override 和现场记录。
 
-## Manual status correction
+## 手动状态修正
 
-Right-click any Session row in the sidebar to open the context menu registered by this
-plugin:
+在侧栏任意会话行上**右键**打开上下文菜单，即可看到状态修正动作（该菜单由本插件注册，其他插件的会话菜单项不受影响）：
 
-| Menu item | Shown when | Effect |
+| 菜单项 | 出现条件 | 作用 |
 |---|---|---|
-| Clear status correction | the Session has a correction record | removes the manual mark, back to automatic resolution |
-| Mark as interrupted | current state is not interrupted and the resolution is not authoritative live | moves a stuck Session into interrupted |
-| Restore to running | current state is not running | fixes a wrong mark, back to the running bucket |
+| 标记状态为（子菜单） | 任意可见会话 | 子菜单覆盖全部七态，选中即写入对应修正 |
+| 清除状态修正 | 该会话已有修正记录（无修正时置灰） | 撤销手动标记，状态回到自动判定 |
+| 清除状态标记 | 当前被标记为「已完结」（否则置灰） | 「已完结」的提前超时清除后门，立即去除灰色高亮框 |
 
-Corrections are stored in the shared override store
-(`dsh-plugin-session-monitor:overrides:v1`) and apply to both the sidebar and the
-overview; the corrected row reads `manually marked interrupted` or `manually restored to
-running`.
+修正写入共享 override 存储（`dsh-plugin-session-monitor:overrides:v1`），侧栏与会话总览同时生效；被修正的会话行会显示「手动标记为〈状态〉」说明。
 
-A correction **expires automatically** (no manual clear needed) as soon as any of these
-holds — the Session has clearly moved on:
+修正**自动失效**（无需手动清除）——任一条件满足即视为会话已经向前走，override 被静默清除：
 
-- the Session produced new activity (last activity newer than the correction's basis
-  time);
-- it entered a live running state;
-- a pending approval / question interaction appeared;
-- a completion-unread mark appeared.
+- 会话产生了新活动（最后活动时间晚于修正时记录的基准时间）；
+- 会话进入实时 running 状态；
+- 出现待审批 / 待回答交互；
+- 出现完成未读标记；
+- 被手动标为「已完成 · 未查看」的会话被打开；
+- **「已完结」从标记时刻起算 `stickyHours` 超时**（其余六种人工标记不受时间过期）。
 
-## Known limits
+## 已知边界
 
-- Host runtime covers live Sessions only; a non-selected inactive Session can still use
-  the scene `running` fallback;
-- a Host `completed` Session without `seenAt` evidence is shown as unread to avoid
-  calling a just-finished Session seen; an older already-read Session could turn green
-  again inside the retention window;
-- review/waiting distinction depends on `pendingInteraction.kind`; a selected warning row
-  without a kind falls back to review;
-- manual correction lives in the sidebar row context menu and supports only
-  `mark as interrupted` / `restore to running` / `clear status correction`.
+- Host runtime 只返回当前 live 会话；没有 runtime 样本时，非选中会话仍可能使用场景 running 兜底判中断；
+- Host `completed` 但没有 `seenAt` 证据时，插件按绿色“未查看”处理，避免把刚完成的会话误判成已查看；个别历史已读会话可能在保留期内重新变绿；
+- 待审核/待处理依赖 `pendingInteraction.kind`；缺少 kind 时只能按选中行 warning 兜底为待审核；
+- 手动修正入口在侧栏会话行的右键菜单，属于人工介入的运维功能：
+  - **标记状态为**：子菜单覆盖全部七种状态（待审核 / 待处理 / 执行中 / 已中断 / 已完成 · 未查看 / 已完成 · 已查看 / 已完结）；
+  - **清除状态修正**：恢复插件自动判定的原始状态（无修正时置灰）；
+  - **清除状态标记**：「已完结」的提前超时清除后门，仅当会话当前被标记为「已完结」时可用，其余状态置灰；
+  - 所有菜单项带与文字呼应的小图标；
+  - 修正失效规则：会话产生新活动、进入运行、出现待办或未读时自动失效；被手动标为「已完成 · 未查看」的会话，打开即自动恢复为「已完成 · 已查看」；**「已完结」从标记时刻起算 `stickyHours` 超时自动失效**，其余六种人工标记不受时间过期。
 
-## Verification
+## 验证
 
 ```bash
 node --check lib/client.js
 node --check lib/index.js
 node test/run.mjs
 ```
+
+## 状态与视觉效果详解
+
+四张示例图和逐条状态规则见 [docs/state-guide/README.zh.md](docs/state-guide/README.zh.md)。
