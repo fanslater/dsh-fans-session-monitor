@@ -1,0 +1,4 @@
+# dsh-fans-session-monitor bundle declaration.
+- insert:
+    - id: dsh-fans-session-monitor
+      name: dsh-fans-session-monitor

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "fans Session Monitor Overview",
+    "description": "Orders the sidebar by each workspace's newest session activity, mirrors the six Session Overview states on rows and workspace headers, and marks the current session with a 2px violet edge border. The sidebar and overview share one status resolver, final-state cache, and manual correction store; the overview provides six buckets, counts, filters, click-to-open, and shutdown-scene restore. A Host interruption, user stop, or failure is interrupted; a normal completion is green unread until selected, then grey seen; long-running work is never marked interrupted merely because no new log arrived. All options live on this plugin's detail page.",
+    "detail": "README.md"
+  }
+}
